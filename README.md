@@ -49,7 +49,12 @@ curl -fsSL https://raw.githubusercontent.com/leonardocbalbino/automacao-instagra
 sudo bash setup-vps.sh insta.seudominio.com.br
 ```
 
-O script instala Docker, libera as portas 80 e 443, clona o repo em `/opt/automacao-instagram`, gera o `.env` com segredos aleatórios e sobe Postgres, Redis, API, worker e Caddy (o Caddy cuida do HTTPS automático). Depois disso:
+O script instala Docker, clona o repo em `/opt/automacao-instagram`, gera o `.env` com segredos aleatórios e sobe Postgres, Redis, API e worker. A API escuta só em `127.0.0.1:3310`, e o HTTPS depende do servidor:
+
+- **VPS que já tem nginx:** cria o site a partir de [deploy/nginx.conf](deploy/nginx.conf) e emite o certificado com certbot.
+- **VPS dedicada:** sobe o Caddy (`COMPOSE_PROFILES=caddy`), que emite o certificado sozinho.
+
+Sem domínio próprio, dá para usar o sslip.io, por exemplo `insta.169-58-37-26.sslip.io`. Depois disso:
 
 1. Preencha `IG_APP_ID` e `IG_APP_SECRET` no `.env` e rode `docker compose up -d`.
 2. Para atualizar a VPS depois: `bash deploy/deploy.sh`.

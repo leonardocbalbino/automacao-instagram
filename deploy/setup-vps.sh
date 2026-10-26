@@ -1,21 +1,17 @@
 #!/usr/bin/env bash
-# Prepara uma VPS Ubuntu/Debian: Docker, firewall, clone do repo e .env com segredos aleatórios.
+# Prepara uma VPS Ubuntu/Debian: Docker, clone do repo, .env com segredos aleatórios e HTTPS.
 # Uso (como root): bash setup-vps.sh <dominio>
+#  - VPS com nginx já rodando: cria um site no nginx e emite o certificado com certbot.
+#  - VPS dedicada: sobe o Caddy (profile caddy), que cuida do HTTPS sozinho.
 set -euo pipefail
 
 DOMAIN="${1:?uso: setup-vps.sh <dominio>}"
 REPO="${REPO:-https://github.com/leonardocbalbino/automacao-instagram.git}"
 DIR="${DIR:-/opt/automacao-instagram}"
+API_PORT="${API_PORT:-3310}"
 
 if ! command -v docker >/dev/null; then
   curl -fsSL https://get.docker.com | sh
-fi
-
-if command -v ufw >/dev/null; then
-  ufw allow OpenSSH >/dev/null
-  ufw allow 80/tcp >/dev/null
-  ufw allow 443/tcp >/dev/null
-  ufw --force enable >/dev/null
 fi
 
 if [ ! -d "$DIR/.git" ]; then
@@ -32,9 +28,22 @@ if [ ! -f .env ]; then
   sed -i "s#^TOKEN_ENCRYPTION_KEY=.*#TOKEN_ENCRYPTION_KEY=$(openssl rand -hex 32)#" .env
   sed -i "s#^IG_WEBHOOK_VERIFY_TOKEN=.*#IG_WEBHOOK_VERIFY_TOKEN=$(openssl rand -hex 12)#" .env
   sed -i "s#^BULL_BOARD_PASSWORD=.*#BULL_BOARD_PASSWORD=$(openssl rand -hex 12)#" .env
+  echo "API_BIND=127.0.0.1:$API_PORT" >> .env
   chmod 600 .env
-  echo ".env criado em $DIR/.env — preencha IG_APP_ID e IG_APP_SECRET."
+  echo ".env criado em $DIR/.env: preencha IG_APP_ID e IG_APP_SECRET."
 fi
 
-docker compose up -d --build
-echo "No ar: https://$DOMAIN (o certificado sai assim que o DNS apontar para esta VPS)"
+if systemctl is-active --quiet nginx; then
+  site=/etc/nginx/sites-available/automacao-instagram
+  sed -e "s#server_name .*;#server_name $DOMAIN;#" -e "s#127.0.0.1:3310#127.0.0.1:$API_PORT#" deploy/nginx.conf > "$site"
+  ln -sf "$site" /etc/nginx/sites-enabled/automacao-instagram
+  nginx -t && systemctl reload nginx
+  docker compose up -d --build
+  command -v certbot >/dev/null || apt-get install -y certbot python3-certbot-nginx
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
+else
+  grep -q "^COMPOSE_PROFILES=" .env || echo "COMPOSE_PROFILES=caddy" >> .env
+  docker compose up -d --build
+fi
+
+echo "No ar: https://$DOMAIN"

@@ -28,6 +28,9 @@ services:
       DATABASE_URL: postgres://automacao:${POSTGRES_PASSWORD}@postgres:5432/automacao
       REDIS_URL: redis://redis:6379
       STORAGE_LOCAL_DIR: /data/uploads
+    ports:
+      # só localhost: o HTTPS fica com o Caddy (profile caddy) ou com um nginx já existente
+      - "${API_BIND:-127.0.0.1:3310}:3000"
     volumes:
       - uploads:/data/uploads
     depends_on:
@@ -48,14 +51,16 @@ services:
     depends_on:
       - api
 
+  # VPS dedicada: docker compose --profile caddy up -d (o Caddy emite o HTTPS sozinho)
   caddy:
     image: caddy:2-alpine
+    profiles: [caddy]
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     environment:
-      DOMAIN: ${DOMAIN:?defina DOMAIN no .env}
+      DOMAIN: ${DOMAIN:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
