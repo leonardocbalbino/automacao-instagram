@@ -11,6 +11,15 @@ function toLocalInput(date) {
   return d.toISOString().slice(0, 16);
 }
 
+// Deixa claro quando o post sai: o campo já vem preenchido com daqui a 1h
+function whenHint(local) {
+  const diff = new Date(local).getTime() - Date.now();
+  if (diff <= 60_000) return 'Publica assim que salvar.';
+  const min = Math.round(diff / 60_000);
+  const rel = min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}`;
+  return `Publica em ${new Date(local).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} (daqui a ${rel}).`;
+}
+
 const empty = () => ({
   account_id: '',
   tipo: 'imagem',
@@ -102,7 +111,13 @@ function PostForm({ initial, onDone }) {
       <label>
         Publicar em
         <input type="datetime-local" value={form.agendado_para} onChange={(e) => set('agendado_para', e.target.value)} />
+        {form.agendado_para && <span className="muted small">{whenHint(form.agendado_para)}</span>}
       </label>
+      {form.tipo === 'story' && (
+        <p className="muted small">
+          Imagens de story fora do formato 9:16 são encaixadas em 1080×1920 com fundo desfocado, para não cortar no celular.
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button type="submit" disabled={save.isPending || uploading}>

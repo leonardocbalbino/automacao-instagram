@@ -2,6 +2,7 @@ import { DelayedError } from 'bullmq';
 import { one, query } from '../lib/db.js';
 import { clientFor } from '../lib/graph.js';
 import { logger } from '../lib/logger.js';
+import { prepareImage } from '../lib/media.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -76,7 +77,13 @@ export async function publishPost(job, token) {
 
   let containerId = job.data.containerId;
   if (!containerId) {
-    containerId = await createContainer(client, post);
+    let media = job.data.preparedMedia;
+    if (!media) {
+      media = [];
+      for (const item of post.media_urls) media.push(await prepareImage(item, { story: post.tipo === 'story' }));
+      await job.updateData({ ...job.data, preparedMedia: media });
+    }
+    containerId = await createContainer(client, { ...post, media_urls: media });
     await job.updateData({ ...job.data, containerId });
   }
 
