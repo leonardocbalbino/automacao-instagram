@@ -16,6 +16,8 @@ export const config = {
   // 32 bytes em base64 ou hex; fica fora do banco (AES-256-GCM)
   tokenEncryptionKey: required('TOKEN_ENCRYPTION_KEY'),
   allowSignup: env.ALLOW_SIGNUP === 'true',
+  // Só este e-mail pode criar o primeiro usuário (admin); evita que um visitante tome o painel
+  adminEmail: (env.ADMIN_EMAIL || '').toLowerCase(),
 
   meta: {
     appId: env.IG_APP_ID || '',

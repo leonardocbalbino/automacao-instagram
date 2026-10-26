@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Prepara uma VPS Ubuntu/Debian: Docker, clone do repo, .env com segredos aleatórios e HTTPS.
-# Uso (como root): bash setup-vps.sh <dominio>
+# Uso (como root): bash setup-vps.sh <dominio> <email-do-admin>
 #  - VPS com nginx já rodando: cria um site no nginx e emite o certificado com certbot.
 #  - VPS dedicada: sobe o Caddy (profile caddy), que cuida do HTTPS sozinho.
 set -euo pipefail
 
-DOMAIN="${1:?uso: setup-vps.sh <dominio>}"
+DOMAIN="${1:?uso: setup-vps.sh <dominio> [email-admin]}"
+ADMIN_EMAIL="${2:-}"
 REPO="${REPO:-https://github.com/leonardocbalbino/automacao-instagram.git}"
 DIR="${DIR:-/opt/automacao-instagram}"
 API_PORT="${API_PORT:-3310}"
@@ -28,6 +29,7 @@ if [ ! -f .env ]; then
   sed -i "s#^TOKEN_ENCRYPTION_KEY=.*#TOKEN_ENCRYPTION_KEY=$(openssl rand -hex 32)#" .env
   sed -i "s#^IG_WEBHOOK_VERIFY_TOKEN=.*#IG_WEBHOOK_VERIFY_TOKEN=$(openssl rand -hex 12)#" .env
   sed -i "s#^BULL_BOARD_PASSWORD=.*#BULL_BOARD_PASSWORD=$(openssl rand -hex 12)#" .env
+  sed -i "s#^ADMIN_EMAIL=.*#ADMIN_EMAIL=$ADMIN_EMAIL#" .env
   echo "API_BIND=127.0.0.1:$API_PORT" >> .env
   chmod 600 .env
   echo ".env criado em $DIR/.env: preencha IG_APP_ID e IG_APP_SECRET."
@@ -39,7 +41,7 @@ if systemctl is-active --quiet nginx; then
   ln -sf "$site" /etc/nginx/sites-enabled/automacao-instagram
   nginx -t && systemctl reload nginx
   docker compose up -d --build
-  command -v certbot >/dev/null || apt-get install -y certbot python3-certbot-nginx
+  dpkg -s python3-certbot-nginx >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y certbot python3-certbot-nginx
   certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
 else
   grep -q "^COMPOSE_PROFILES=" .env || echo "COMPOSE_PROFILES=caddy" >> .env

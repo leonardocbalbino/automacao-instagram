@@ -16,6 +16,9 @@ router.post(
     // O primeiro usuário vira admin; depois disso o cadastro só abre com ALLOW_SIGNUP=true
     const { count } = await one('SELECT count(*)::int AS count FROM users');
     if (count > 0 && !config.allowSignup) throw new HttpError(403, 'Cadastro fechado');
+    if (count === 0 && config.adminEmail && body.email.toLowerCase() !== config.adminEmail) {
+      throw new HttpError(403, 'O primeiro cadastro é reservado ao e-mail de ADMIN_EMAIL');
+    }
     const exists = await one('SELECT id FROM users WHERE email = $1', [body.email.toLowerCase()]);
     if (exists) throw new HttpError(409, 'E-mail já cadastrado');
     const user = await one(

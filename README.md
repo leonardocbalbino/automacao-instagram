@@ -46,7 +46,7 @@ Com um domínio apontando (registro A) para a VPS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/leonardocbalbino/automacao-instagram/main/deploy/setup-vps.sh -o setup-vps.sh
-sudo bash setup-vps.sh insta.seudominio.com.br
+sudo bash setup-vps.sh insta.seudominio.com.br voce@email.com
 ```
 
 O script instala Docker, clona o repo em `/opt/automacao-instagram`, gera o `.env` com segredos aleatórios e sobe Postgres, Redis, API e worker. A API escuta só em `127.0.0.1:3310`, e o HTTPS depende do servidor:
